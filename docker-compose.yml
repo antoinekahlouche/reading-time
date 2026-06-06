@@ -4,6 +4,7 @@ services:
   reading-time:
     container_name: reading-time
     image: ghcr.io/antoinekahlouche/reading-time:latest
+    pull_policy: always
     build:
       context: .
     ports:
