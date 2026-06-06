@@ -12,6 +12,7 @@ const publicDir = resolve("public");
 const cacheBeforePages = 2;
 const cacheAfterPages = 5;
 const renderDpi = String(Number(process.env.RENDER_DPI) || 90);
+const jpegQuality = String(Number(process.env.JPEG_QUALITY) || 85);
 
 mkdirSync(tmpDir, { recursive: true });
 mkdirSync(cacheDir, { recursive: true });
@@ -24,6 +25,7 @@ type LibraryCache = { collections: CachedCollection[] };
 let cacheState: CacheState = loadCacheState();
 let libraryCache: LibraryCache = { collections: [] };
 libraryCache = loadLibraryCache();
+cleanupLegacyImageCache();
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -42,6 +44,16 @@ function safeResolve(...parts: string[]) {
     throw new Error("Invalid path");
   }
   return filePath;
+}
+
+function cleanupLegacyImageCache() {
+  for (const entry of readdirSync(cacheDir, { withFileTypes: true })) {
+    if (!entry.isFile() || (!entry.name.endsWith(".png") && !entry.name.endsWith(".webp"))) continue;
+
+    const cachePath = join(cacheDir, entry.name);
+    unlinkSync(cachePath);
+    logAction("legacy-image-cache-removed", { cachePath });
+  }
 }
 
 function listCollections() {
@@ -108,7 +120,7 @@ function pdfVersion(pdfPath: string) {
 }
 
 function cachePathFor(pdfPath: string, page: number) {
-  return join(cacheDir, `${Bun.hash(`${pdfPath}:${pdfVersion(pdfPath)}:${page}`)}.png`);
+  return join(cacheDir, `${Bun.hash(`${pdfPath}:${pdfVersion(pdfPath)}:${page}:${renderDpi}:${jpegQuality}:jpeg`)}.jpg`);
 }
 
 function loadCacheState() {
@@ -193,10 +205,10 @@ async function renderPage(pdfPath: string, page: number) {
 
 async function renderPageToCache(pdfPath: string, page: number, cachePath: string) {
   const outputPrefix = join(tmpDir, `${Bun.hash(`${pdfPath}:${page}:${Date.now()}`)}`);
-  logAction("image-cache-render-started", { pdfPath, page, cachePath, dpi: renderDpi });
-  await runCommand("pdftoppm", ["-f", String(page), "-l", String(page), "-png", "-singlefile", "-r", renderDpi, pdfPath, outputPrefix]);
+  logAction("image-cache-render-started", { pdfPath, page, cachePath, dpi: renderDpi, format: "jpeg", quality: jpegQuality });
+  await runCommand("pdftoppm", ["-f", String(page), "-l", String(page), "-jpeg", "-jpegopt", `quality=${jpegQuality}`, "-singlefile", "-r", renderDpi, pdfPath, outputPrefix]);
 
-  const imagePath = `${outputPrefix}.png`;
+  const imagePath = `${outputPrefix}.jpg`;
   renameSync(imagePath, cachePath);
   logAction("image-cache-added", { pdfPath, page, cachePath });
   return Bun.file(cachePath);
@@ -348,7 +360,7 @@ async function handleApi(request: Request, url: URL) {
       const pdfPath = getPdfPath(parts[2], parts[3]);
       return new Response(await renderPage(pdfPath, 1), {
         headers: {
-          "Content-Type": "image/png",
+          "Content-Type": "image/jpeg",
           "Cache-Control": "public, max-age=31536000, immutable",
         },
       });
@@ -371,7 +383,7 @@ async function handleApi(request: Request, url: URL) {
 
       return new Response(await renderPage(pdfPath, page), {
         headers: {
-          "Content-Type": "image/png",
+          "Content-Type": "image/jpeg",
           "Cache-Control": "public, max-age=31536000, immutable",
         },
       });

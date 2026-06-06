@@ -14,6 +14,7 @@ COPY public ./public
 
 ENV PORT=3000
 ENV DATA_DIR=/app/data
+ENV JPEG_QUALITY=85
 
 EXPOSE 3000
 

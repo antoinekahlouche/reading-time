@@ -14,7 +14,8 @@ services:
     environment:
       PORT: 3000
       DATA_DIR: /app/data
-      RENDER_DPI: 90
+      RENDER_DPI: 120
+      JPEG_QUALITY: 85
 
 volumes:
   reading-time:
