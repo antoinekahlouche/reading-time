@@ -45,12 +45,12 @@ async function api(path, options) {
 }
 
 function setState(next) {
-  state = { ...state, ...next };
+  state = Object.assign({}, state, next);
   render();
 }
 
 function navigate(next) {
-  state = { ...state, ...next };
+  state = Object.assign({}, state, next);
   history.pushState(null, "", statePath());
   render();
 }
@@ -79,7 +79,7 @@ function screen(title, items, onBack) {
       button.textContent = item.label;
     }
     button.addEventListener("click", item.action);
-    list.append(button);
+    list.appendChild(button);
   }
 }
 
@@ -125,27 +125,24 @@ async function showCollections() {
       showError(error);
     }
   });
-  actions.append(button);
+  actions.appendChild(button);
 }
 
 async function showBooks() {
   app.innerHTML = '<p class="loading">Finding the stories...</p>';
   const { collections, books } = await api(`/api/collections/${enc(state.collection)}/books`);
-  const items = [
-    ...collections.map((collection) => ({
+  const items = collections.map((collection) => ({
       label: collection.label,
       cover: collectionCover(collection),
       action: () => navigate({ view: "books", collection: collection.name, book: null, page: 1, pages: 0, version: null, jumpOpen: false }),
-    })),
-    ...books.map((book) => ({
+    })).concat(books.map((book) => ({
       label: book.name.replace(/\.pdf$/i, ""),
       cover: coverUrl(state.collection, book.name, book.version),
       action: async () => {
         const { pages, page, version } = await api(`/api/book/${enc(state.collection)}/${enc(book.name)}/meta`);
         navigate({ view: "reader", book: book.name, page, pages, version, jumpOpen: false });
       },
-    })),
-  ];
+    })));
   screen(collectionLabel(state.collection), items, () => {
     const parent = parentCollection(state.collection);
     navigate({ view: parent ? "books" : "collections", collection: parent, book: null, page: 1, pages: 0, version: null, jumpOpen: false });
@@ -195,7 +192,7 @@ function showJumpDialog() {
     </form>
   `;
 
-  app.append(dialog);
+  app.appendChild(dialog);
 
   const input = dialog.querySelector("input");
   input.focus();
@@ -205,15 +202,15 @@ function showJumpDialog() {
     if (Number(input.value) < 1) input.value = "1";
   });
 
-  dialog.querySelector(".cancel").addEventListener("click", () => dialog.remove());
+  dialog.querySelector(".cancel").addEventListener("click", () => dialog.parentNode && dialog.parentNode.removeChild(dialog));
   dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) dialog.remove();
+    if (event.target === dialog && dialog.parentNode) dialog.parentNode.removeChild(dialog);
   });
   dialog.querySelector("form").addEventListener("submit", (event) => {
     event.preventDefault();
     const page = Number(input.value);
     if (!Number.isInteger(page) || page < 1 || page > state.pages) return;
-    dialog.remove();
+    if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
     goPage(page);
   });
 }
@@ -222,7 +219,7 @@ async function showReader() {
   if (!state.version) {
     app.innerHTML = '<p class="loading">Opening the book...</p>';
     const { pages, version } = await api(`/api/book/${enc(state.collection)}/${enc(state.book)}/meta`);
-    state = { ...state, pages, version, page: Math.min(state.page, pages) };
+    state = Object.assign({}, state, { pages, version, page: Math.min(state.page, pages) });
     history.replaceState(null, "", statePath());
     savePosition(state.page);
   }
