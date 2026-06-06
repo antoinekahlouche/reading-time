@@ -3,6 +3,8 @@ name: reading-time
 services:
   reading-time:
     image: ghcr.io/antoinekahlouche/reading-time:latest
+    build:
+      context: .
     ports:
       - "3000:3000"
     volumes:
