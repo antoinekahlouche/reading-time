@@ -443,6 +443,19 @@ async function handleApi(request: Request, url: URL) {
       });
     }
 
+    if (parts.length === 6 && parts[0] === "api" && parts[1] === "book" && parts[4] === "position") {
+      if (request.method !== "POST") return json({ error: "Not found" }, 404);
+
+      const page = Number(parts[5]);
+      const pdfPath = getPdfPath(parts[2], parts[3]);
+      const { pages } = getCachedBook(parts[2], parts[3]);
+
+      if (!Number.isInteger(page) || page < 1 || page > pages) return json({ error: "Invalid page" }, 400);
+
+      updatePdfPosition(pdfPath, page, pages);
+      return json({ page });
+    }
+
     return json({ error: "Not found" }, 404);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Server error" }, 500);

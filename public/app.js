@@ -156,9 +156,18 @@ function pageUrl(page, savePosition = false) {
   return `/api/book/${enc(state.collection)}/${enc(state.book)}/page/${page}?v=${enc(state.version)}&save=${savePosition ? "1" : "0"}`;
 }
 
+function positionUrl(page) {
+  return `/api/book/${enc(state.collection)}/${enc(state.book)}/position/${page}`;
+}
+
+function savePosition(page) {
+  api(positionUrl(page), { method: "POST" }).catch((error) => console.error("Failed to save position:", error));
+}
+
 function goPage(nextPage) {
   if (nextPage < 1 || nextPage > state.pages) return;
   navigate({ page: nextPage, jumpOpen: false });
+  savePosition(nextPage);
 }
 
 function preloadPage(page) {
@@ -215,6 +224,7 @@ async function showReader() {
     const { pages, version } = await api(`/api/book/${enc(state.collection)}/${enc(state.book)}/meta`);
     state = { ...state, pages, version, page: Math.min(state.page, pages) };
     history.replaceState(null, "", statePath());
+    savePosition(state.page);
   }
 
   app.innerHTML = `
