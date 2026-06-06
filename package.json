@@ -4,7 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "babel src/app.js --out-file public/app.js",
+    "prestart": "bun run build",
     "start": "bun src/server.ts"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "@babel/cli": "^7.28.3",
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5"
+  },
+  "browserslist": [
+    "ios_saf >= 8",
+    "safari >= 8"
+  ],
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "ios": "8",
+            "safari": "8"
+          }
+        }
+      ]
+    ]
+  }
 }
