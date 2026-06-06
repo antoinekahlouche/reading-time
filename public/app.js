@@ -12,6 +12,28 @@ let state = {
 
 const enc = encodeURIComponent;
 
+function dec(value) {
+  return decodeURIComponent(value.replace(/\+/g, "%20"));
+}
+
+function pathState() {
+  const parts = window.location.pathname.split("/").filter(Boolean).map(dec);
+  if (parts.length === 0) return { view: "collections", collection: null, book: null, page: 1, pages: 0, version: null, jumpOpen: false };
+
+  const page = Number(parts[parts.length - 1]);
+  if (Number.isInteger(page) && page > 0 && parts.length >= 2) {
+    return { view: "reader", collection: parts.slice(0, -2).join("/"), book: parts[parts.length - 2], page, pages: 0, version: null, jumpOpen: false };
+  }
+
+  return { view: "books", collection: parts.join("/"), book: null, page: 1, pages: 0, version: null, jumpOpen: false };
+}
+
+function statePath(next = state) {
+  if (next.view === "collections") return "/";
+  if (next.view === "books") return `/${next.collection.split("/").map(enc).join("/")}`;
+  return `/${next.collection.split("/").map(enc).join("/")}/${enc(next.book)}/${next.page}`;
+}
+
 function escapeHtml(value) {
   return value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
 }
@@ -24,6 +46,12 @@ async function api(path, options) {
 
 function setState(next) {
   state = { ...state, ...next };
+  render();
+}
+
+function navigate(next) {
+  state = { ...state, ...next };
+  history.pushState(null, "", statePath());
   render();
 }
 
@@ -59,13 +87,28 @@ function coverUrl(collection, book, version) {
   return `/api/book/${enc(collection)}/${enc(book)}/cover?v=${enc(version)}`;
 }
 
+function parentCollection(collection) {
+  const parts = collection.split("/");
+  parts.pop();
+  return parts.join("/") || null;
+}
+
+function collectionLabel(collection) {
+  const parts = collection.split("/");
+  return parts[parts.length - 1];
+}
+
+function collectionCover(collection) {
+  return collection.firstBook ? coverUrl(collection.coverCollection || collection.name, collection.firstBook, collection.version) : null;
+}
+
 async function showCollections() {
   app.innerHTML = '<p class="loading">Opening the bookshelf...</p>';
   const { collections } = await api("/api/collections");
   screen("Collections", collections.map((collection) => ({
-    label: collection.name,
-    cover: collection.firstBook ? coverUrl(collection.name, collection.firstBook, collection.version) : null,
-    action: () => setState({ view: "books", collection: collection.name }),
+    label: collection.label,
+    cover: collectionCover(collection),
+    action: () => navigate({ view: "books", collection: collection.name, book: null, page: 1, pages: 0, version: null, jumpOpen: false }),
   })));
 
   const actions = app.querySelector(".menu-actions");
@@ -87,15 +130,26 @@ async function showCollections() {
 
 async function showBooks() {
   app.innerHTML = '<p class="loading">Finding the stories...</p>';
-  const { books } = await api(`/api/collections/${enc(state.collection)}/books`);
-  screen(state.collection, books.map((book) => ({
-    label: book.name.replace(/\.pdf$/i, ""),
-    cover: coverUrl(state.collection, book.name, book.version),
-    action: async () => {
-      const { pages, page, version } = await api(`/api/book/${enc(state.collection)}/${enc(book.name)}/meta`);
-      setState({ view: "reader", book: book.name, page, pages, version, jumpOpen: false });
-    },
-  })), () => setState({ view: "collections", collection: null }));
+  const { collections, books } = await api(`/api/collections/${enc(state.collection)}/books`);
+  const items = [
+    ...collections.map((collection) => ({
+      label: collection.label,
+      cover: collectionCover(collection),
+      action: () => navigate({ view: "books", collection: collection.name, book: null, page: 1, pages: 0, version: null, jumpOpen: false }),
+    })),
+    ...books.map((book) => ({
+      label: book.name.replace(/\.pdf$/i, ""),
+      cover: coverUrl(state.collection, book.name, book.version),
+      action: async () => {
+        const { pages, page, version } = await api(`/api/book/${enc(state.collection)}/${enc(book.name)}/meta`);
+        navigate({ view: "reader", book: book.name, page, pages, version, jumpOpen: false });
+      },
+    })),
+  ];
+  screen(collectionLabel(state.collection), items, () => {
+    const parent = parentCollection(state.collection);
+    navigate({ view: parent ? "books" : "collections", collection: parent, book: null, page: 1, pages: 0, version: null, jumpOpen: false });
+  });
 }
 
 function pageUrl(page, savePosition = false) {
@@ -104,7 +158,7 @@ function pageUrl(page, savePosition = false) {
 
 function goPage(nextPage) {
   if (nextPage < 1 || nextPage > state.pages) return;
-  setState({ page: nextPage, jumpOpen: false });
+  navigate({ page: nextPage, jumpOpen: false });
 }
 
 function preloadPage(page) {
@@ -155,7 +209,14 @@ function showJumpDialog() {
   });
 }
 
-function showReader() {
+async function showReader() {
+  if (!state.version) {
+    app.innerHTML = '<p class="loading">Opening the book...</p>';
+    const { pages, version } = await api(`/api/book/${enc(state.collection)}/${enc(state.book)}/meta`);
+    state = { ...state, pages, version, page: Math.min(state.page, pages) };
+    history.replaceState(null, "", statePath());
+  }
+
   app.innerHTML = `
     <section class="reader">
       <button class="return">Books</button>
@@ -167,7 +228,7 @@ function showReader() {
     </section>
   `;
 
-  app.querySelector(".return").addEventListener("click", () => setState({ view: "books", book: null, page: 1, pages: 0, version: null, jumpOpen: false }));
+  app.querySelector(".return").addEventListener("click", () => navigate({ view: "books", book: null, page: 1, pages: 0, version: null, jumpOpen: false }));
   app.querySelector(".counter").addEventListener("click", showJumpDialog);
   app.querySelector(".left").addEventListener("click", () => goPage(state.page - 1));
   app.querySelector(".right").addEventListener("click", () => goPage(state.page + 1));
@@ -191,19 +252,26 @@ function showReader() {
 function render() {
   if (state.view === "collections") showCollections().catch(showError);
   if (state.view === "books") showBooks().catch(showError);
-  if (state.view === "reader") showReader();
+  if (state.view === "reader") showReader().catch(showError);
 }
 
 function showError(error) {
   app.innerHTML = `<section class="menu"><p class="eyebrow">Reading Time</p><h1>Oops</h1><p>${error.message}</p><button class="back">Back to shelves</button></section>`;
-  app.querySelector(".back").addEventListener("click", () => setState({ view: "collections", collection: null, book: null }));
+  app.querySelector(".back").addEventListener("click", () => navigate({ view: "collections", collection: null, book: null }));
 }
+
+window.addEventListener("popstate", () => {
+  state = pathState();
+  render();
+});
 
 window.addEventListener("keydown", (event) => {
   if (state.view !== "reader") return;
   if (event.key === "ArrowLeft") goPage(state.page - 1);
   if (event.key === "ArrowRight") goPage(state.page + 1);
-  if (event.key === "Escape") setState({ view: "books", book: null, page: 1, pages: 0, version: null, jumpOpen: false });
+  if (event.key === "Escape") navigate({ view: "books", book: null, page: 1, pages: 0, version: null, jumpOpen: false });
 });
 
+state = pathState();
+history.replaceState(null, "", statePath());
 render();

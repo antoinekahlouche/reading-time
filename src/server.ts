@@ -19,7 +19,7 @@ mkdirSync(cacheDir, { recursive: true });
 
 type CacheState = Record<string, number>;
 type CachedBook = { name: string; version: string; pages: number };
-type CachedCollection = { name: string; books: CachedBook[] };
+type CachedCollection = { name: string; books: CachedBook[]; collections: CachedCollection[] };
 type LibraryCache = { collections: CachedCollection[] };
 
 let cacheState: CacheState = loadCacheState();
@@ -56,10 +56,11 @@ function cleanupLegacyImageCache() {
   }
 }
 
-function listCollections() {
-  if (!existsSync(dataDir)) return [];
+function listCollections(collection = "") {
+  const collectionDir = safeResolve(collection);
+  if (!existsSync(collectionDir)) return [];
 
-  return readdirSync(dataDir, { withFileTypes: true })
+  return readdirSync(collectionDir, { withFileTypes: true })
     .filter((entry) => !entry.name.startsWith("."))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
@@ -75,25 +76,56 @@ function listBooks(collection: string) {
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
+function collectionPath(parent: string, name: string) {
+  return parent ? `${parent}/${name}` : name;
+}
+
+function allCollections(collections = libraryCache.collections): CachedCollection[] {
+  return collections.flatMap((collection) => [collection, ...allCollections(collection.collections ?? [])]);
+}
+
+function findCollection(collection: string) {
+  return allCollections().find((item) => item.name === collection);
+}
+
+function firstBookIn(collection: CachedCollection): { collection: CachedCollection; book: CachedBook } | null {
+  const firstBook = collection.books[0];
+  if (firstBook) return { collection, book: firstBook };
+
+  for (const child of collection.collections ?? []) {
+    const childBook = firstBookIn(child);
+    if (childBook) return childBook;
+  }
+
+  return null;
+}
+
+function collectionSummary(collection: CachedCollection) {
+  const firstBook = firstBookIn(collection);
+  return {
+    name: collection.name,
+    label: collection.name.split("/").at(-1) ?? collection.name,
+    coverCollection: firstBook?.collection.name ?? null,
+    firstBook: firstBook?.book.name ?? null,
+    version: firstBook?.book.version ?? null,
+  };
+}
+
 function collectionSummaries() {
-  return libraryCache.collections.map(({ name, books }) => {
-    const firstBook = books[0] ?? null;
-    return {
-      name,
-      firstBook: firstBook?.name ?? null,
-      version: firstBook?.version ?? null,
-    };
-  });
+  return libraryCache.collections.map(collectionSummary);
 }
 
 function bookSummaries(collection: string) {
-  const cachedCollection = libraryCache.collections.find((item) => item.name === collection);
+  const cachedCollection = findCollection(collection);
   if (!cachedCollection) throw new Error("Collection not found");
-  return cachedCollection.books.map(({ name, version }) => ({ name, version }));
+  return {
+    collections: (cachedCollection.collections ?? []).map(collectionSummary),
+    books: cachedCollection.books.map(({ name, version }) => ({ name, version })),
+  };
 }
 
 function getPdfPath(collection: string, book: string) {
-  const cachedCollection = libraryCache.collections.find((item) => item.name === collection);
+  const cachedCollection = findCollection(collection);
   if (!cachedCollection?.books.some((item) => item.name === book)) {
     throw new Error("Book not found");
   }
@@ -101,7 +133,7 @@ function getPdfPath(collection: string, book: string) {
 }
 
 function getCachedBook(collection: string, book: string) {
-  const cachedBook = libraryCache.collections.find((item) => item.name === collection)?.books.find((item) => item.name === book);
+  const cachedBook = findCollection(collection)?.books.find((item) => item.name === book);
   if (!cachedBook) throw new Error("Book not found");
   return cachedBook;
 }
@@ -147,11 +179,11 @@ function saveLibraryCache() {
 function syncLibraryCache() {
   logAction("library-sync-started", { dataDir, cachePath: libraryCachePath });
   const previousBooks = new Map<string, CachedBook>();
-  for (const collection of libraryCache?.collections ?? []) {
+  for (const collection of allCollections(libraryCache?.collections ?? [])) {
     for (const book of collection.books) previousBooks.set(`${collection.name}/${book.name}`, book);
   }
 
-  const collections = listCollections().map((name) => {
+  function syncCollection(name: string): CachedCollection {
     const books = listBooks(name).map((bookName) => {
       const pdfPath = safeResolve(name, bookName);
       const version = pdfVersion(pdfPath);
@@ -165,14 +197,18 @@ function syncLibraryCache() {
       logAction(previous ? "pdf-cache-entry-updated" : "pdf-cache-entry-added", { collection: name, book: bookName, version, pages });
       return { name: bookName, version, pages };
     });
-    return { name, books };
-  });
+
+    const collections = listCollections(name).map((childName) => syncCollection(collectionPath(name, childName)));
+    return { name, books, collections };
+  }
+
+  const collections = listCollections().map((name) => syncCollection(name));
 
   libraryCache = { collections };
   saveLibraryCache();
   logAction("library-sync-finished", {
     collections: libraryCache.collections.length,
-    books: libraryCache.collections.reduce((total, collection) => total + collection.books.length, 0),
+    books: allCollections().reduce((total, collection) => total + collection.books.length, 0),
   });
   return libraryCache;
 }
@@ -345,7 +381,7 @@ async function processRenderQueue() {
 }
 
 function preRenderStartupPages() {
-  for (const collection of libraryCache.collections) {
+  for (const collection of allCollections()) {
     for (const book of collection.books) {
       const pdfPath = safeResolve(collection.name, book.name);
       cleanupPdfCacheExceptCover(pdfPath, book.pages);
@@ -371,7 +407,7 @@ async function handleApi(request: Request, url: URL) {
     }
 
     if (parts.length === 4 && parts[0] === "api" && parts[1] === "collections" && parts[3] === "books") {
-      return json({ books: bookSummaries(parts[2]) });
+      return json(bookSummaries(parts[2]));
     }
 
     if (parts.length === 5 && parts[0] === "api" && parts[1] === "book" && parts[4] === "cover") {
@@ -420,11 +456,14 @@ Bun.serve({
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) return handleApi(request, url);
 
-    const filePath = url.pathname === "/" ? join(publicDir, "index.html") : resolve(publicDir, `.${url.pathname}`);
+    let filePath = url.pathname === "/" ? join(publicDir, "index.html") : resolve(publicDir, `.${url.pathname}`);
     if (filePath !== publicDir && !filePath.startsWith(`${publicDir}/`)) return new Response("Not found", { status: 404 });
 
-    const file = Bun.file(filePath);
-    if (!(await file.exists())) return new Response("Not found", { status: 404 });
+    let file = Bun.file(filePath);
+    if (!(await file.exists())) {
+      filePath = join(publicDir, "index.html");
+      file = Bun.file(filePath);
+    }
     return new Response(file);
   },
 });
