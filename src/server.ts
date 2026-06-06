@@ -7,21 +7,33 @@ const dataDir = resolve(process.env.DATA_DIR ?? "data");
 const tmpDir = resolve(process.env.TMP_DIR ?? "/tmp/reading-time");
 const cacheDir = join(tmpDir, "cache");
 const cacheStatePath = join(tmpDir, "cache-state.json");
+const libraryCachePath = join(tmpDir, "library-cache.json");
 const publicDir = resolve("public");
 const cacheBeforePages = 2;
 const cacheAfterPages = 5;
+const renderDpi = String(Number(process.env.RENDER_DPI) || 90);
 
 mkdirSync(tmpDir, { recursive: true });
 mkdirSync(cacheDir, { recursive: true });
 
 type CacheState = Record<string, number>;
+type CachedBook = { name: string; version: string; pages: number };
+type CachedCollection = { name: string; books: CachedBook[] };
+type LibraryCache = { collections: CachedCollection[] };
+
 let cacheState: CacheState = loadCacheState();
+let libraryCache: LibraryCache = { collections: [] };
+libraryCache = loadLibraryCache();
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function logAction(action: string, details: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({ time: new Date().toISOString(), action, ...details }));
 }
 
 function safeResolve(...parts: string[]) {
@@ -33,6 +45,8 @@ function safeResolve(...parts: string[]) {
 }
 
 function listCollections() {
+  if (!existsSync(dataDir)) return [];
+
   return readdirSync(dataDir, { withFileTypes: true })
     .filter((entry) => !entry.name.startsWith("."))
     .filter((entry) => entry.isDirectory())
@@ -50,29 +64,34 @@ function listBooks(collection: string) {
 }
 
 function collectionSummaries() {
-  return listCollections().map((name) => {
-    const firstBook = listBooks(name)[0] ?? null;
-    const firstBookPath = firstBook ? safeResolve(name, firstBook) : null;
+  return libraryCache.collections.map(({ name, books }) => {
+    const firstBook = books[0] ?? null;
     return {
       name,
-      firstBook,
-      version: firstBookPath ? pdfVersion(firstBookPath) : null,
+      firstBook: firstBook?.name ?? null,
+      version: firstBook?.version ?? null,
     };
   });
 }
 
 function bookSummaries(collection: string) {
-  return listBooks(collection).map((name) => {
-    const pdfPath = safeResolve(collection, name);
-    return { name, version: pdfVersion(pdfPath) };
-  });
+  const cachedCollection = libraryCache.collections.find((item) => item.name === collection);
+  if (!cachedCollection) throw new Error("Collection not found");
+  return cachedCollection.books.map(({ name, version }) => ({ name, version }));
 }
 
 function getPdfPath(collection: string, book: string) {
-  if (!listCollections().includes(collection) || !listBooks(collection).includes(book)) {
+  const cachedCollection = libraryCache.collections.find((item) => item.name === collection);
+  if (!cachedCollection?.books.some((item) => item.name === book)) {
     throw new Error("Book not found");
   }
   return safeResolve(collection, book);
+}
+
+function getCachedBook(collection: string, book: string) {
+  const cachedBook = libraryCache.collections.find((item) => item.name === collection)?.books.find((item) => item.name === book);
+  if (!cachedBook) throw new Error("Book not found");
+  return cachedBook;
 }
 
 function getPageCount(pdfPath: string) {
@@ -100,8 +119,55 @@ function loadCacheState() {
   }
 }
 
+function loadLibraryCache() {
+  try {
+    return JSON.parse(readFileSync(libraryCachePath, "utf8")) as LibraryCache;
+  } catch {
+    return syncLibraryCache();
+  }
+}
+
+function saveLibraryCache() {
+  writeFileSync(libraryCachePath, JSON.stringify(libraryCache, null, 2));
+  logAction("library-cache-saved", { path: libraryCachePath, collections: libraryCache.collections.length });
+}
+
+function syncLibraryCache() {
+  logAction("library-sync-started", { dataDir, cachePath: libraryCachePath });
+  const previousBooks = new Map<string, CachedBook>();
+  for (const collection of libraryCache?.collections ?? []) {
+    for (const book of collection.books) previousBooks.set(`${collection.name}/${book.name}`, book);
+  }
+
+  const collections = listCollections().map((name) => {
+    const books = listBooks(name).map((bookName) => {
+      const pdfPath = safeResolve(name, bookName);
+      const version = pdfVersion(pdfPath);
+      const previous = previousBooks.get(`${name}/${bookName}`);
+      if (previous?.version === version) {
+        logAction("pdf-cache-entry-reused", { collection: name, book: bookName, version });
+        return previous;
+      }
+
+      const pages = getPageCount(pdfPath);
+      logAction(previous ? "pdf-cache-entry-updated" : "pdf-cache-entry-added", { collection: name, book: bookName, version, pages });
+      return { name: bookName, version, pages };
+    });
+    return { name, books };
+  });
+
+  libraryCache = { collections };
+  saveLibraryCache();
+  logAction("library-sync-finished", {
+    collections: libraryCache.collections.length,
+    books: libraryCache.collections.reduce((total, collection) => total + collection.books.length, 0),
+  });
+  return libraryCache;
+}
+
 function saveCacheState() {
   writeFileSync(cacheStatePath, JSON.stringify(cacheState, null, 2));
+  logAction("position-cache-saved", { path: cacheStatePath, entries: Object.keys(cacheState).length });
 }
 
 function pdfKey(pdfPath: string) {
@@ -127,10 +193,12 @@ async function renderPage(pdfPath: string, page: number) {
 
 async function renderPageToCache(pdfPath: string, page: number, cachePath: string) {
   const outputPrefix = join(tmpDir, `${Bun.hash(`${pdfPath}:${page}:${Date.now()}`)}`);
-  await runCommand("pdftoppm", ["-f", String(page), "-l", String(page), "-png", "-singlefile", "-r", "120", pdfPath, outputPrefix]);
+  logAction("image-cache-render-started", { pdfPath, page, cachePath, dpi: renderDpi });
+  await runCommand("pdftoppm", ["-f", String(page), "-l", String(page), "-png", "-singlefile", "-r", renderDpi, pdfPath, outputPrefix]);
 
   const imagePath = `${outputPrefix}.png`;
   renameSync(imagePath, cachePath);
+  logAction("image-cache-added", { pdfPath, page, cachePath });
   return Bun.file(cachePath);
 }
 
@@ -169,6 +237,7 @@ function enqueuePage(pdfPath: string, page: number, priority = false) {
   queuedKeys.add(key);
   if (priority) renderQueue.unshift({ pdfPath, page });
   else renderQueue.push({ pdfPath, page });
+  logAction("image-cache-render-queued", { pdfPath, page, priority });
   void processRenderQueue();
 }
 
@@ -191,6 +260,7 @@ function enqueuePageWindow(pdfPath: string, currentPage: number, totalPages: num
 
 function updatePdfPosition(pdfPath: string, currentPage: number, totalPages: number) {
   cacheState[pdfKey(pdfPath)] = currentPage;
+  logAction("position-cache-updated", { pdfPath, page: currentPage, totalPages });
   saveCacheState();
   cleanupPdfCacheWindow(pdfPath, currentPage, totalPages);
   enqueuePageWindow(pdfPath, currentPage, totalPages, true);
@@ -212,7 +282,10 @@ function cleanupPdfCacheWindow(pdfPath: string, currentPage: number, totalPages:
     if (activeRenders.has(queueKey(pdfPath, page))) continue;
 
     const cachePath = cachePathFor(pdfPath, page);
-    if (existsSync(cachePath)) unlinkSync(cachePath);
+    if (existsSync(cachePath)) {
+      unlinkSync(cachePath);
+      logAction("image-cache-removed", { pdfPath, page, cachePath });
+    }
   }
 }
 
@@ -240,10 +313,10 @@ async function processRenderQueue() {
 }
 
 function preRenderStartupPages() {
-  for (const collection of listCollections()) {
-    for (const book of listBooks(collection)) {
-      const pdfPath = safeResolve(collection, book);
-      const pages = getPageCount(pdfPath);
+  for (const collection of libraryCache.collections) {
+    for (const book of collection.books) {
+      const pdfPath = safeResolve(collection.name, book.name);
+      const pages = book.pages;
       const currentPage = cachedPage(pdfPath, pages);
       cleanupPdfCacheWindow(pdfPath, currentPage, pages);
       enqueuePageWindow(pdfPath, currentPage, pages);
@@ -255,11 +328,17 @@ function decodePart(value: string) {
   return decodeURIComponent(value.replace(/\+/g, "%20"));
 }
 
-async function handleApi(url: URL) {
+async function handleApi(request: Request, url: URL) {
   const parts = url.pathname.split("/").filter(Boolean).map(decodePart);
 
   try {
     if (url.pathname === "/api/collections") return json({ collections: collectionSummaries() });
+
+    if (url.pathname === "/api/sync") {
+      if (request.method !== "POST") return json({ error: "Not found" }, 404);
+      syncLibraryCache();
+      return json({ collections: collectionSummaries() });
+    }
 
     if (parts.length === 4 && parts[0] === "api" && parts[1] === "collections" && parts[3] === "books") {
       return json({ books: bookSummaries(parts[2]) });
@@ -277,14 +356,14 @@ async function handleApi(url: URL) {
 
     if (parts.length === 5 && parts[0] === "api" && parts[1] === "book" && parts[4] === "meta") {
       const pdfPath = getPdfPath(parts[2], parts[3]);
-      const pages = getPageCount(pdfPath);
-      return json({ pages, page: cachedPage(pdfPath, pages), version: pdfVersion(pdfPath) });
+      const { pages, version } = getCachedBook(parts[2], parts[3]);
+      return json({ pages, page: cachedPage(pdfPath, pages), version });
     }
 
     if (parts.length === 6 && parts[0] === "api" && parts[1] === "book" && parts[4] === "page") {
       const page = Number(parts[5]);
       const pdfPath = getPdfPath(parts[2], parts[3]);
-      const pages = getPageCount(pdfPath);
+      const { pages } = getCachedBook(parts[2], parts[3]);
 
       if (!Number.isInteger(page) || page < 1 || page > pages) return json({ error: "Invalid page" }, 400);
 
@@ -309,7 +388,7 @@ Bun.serve({
   idleTimeout: 120,
   async fetch(request) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/")) return handleApi(url);
+    if (url.pathname.startsWith("/api/")) return handleApi(request, url);
 
     const filePath = url.pathname === "/" ? join(publicDir, "index.html") : resolve(publicDir, `.${url.pathname}`);
     if (filePath !== publicDir && !filePath.startsWith(`${publicDir}/`)) return new Response("Not found", { status: 404 });

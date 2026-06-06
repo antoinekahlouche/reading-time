@@ -16,8 +16,8 @@ function escapeHtml(value) {
   return value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
 }
 
-async function api(path) {
-  const response = await fetch(path);
+async function api(path, options) {
+  const response = await fetch(path, options);
   if (!response.ok) throw new Error((await response.json()).error || "Request failed");
   return response.json();
 }
@@ -35,6 +35,7 @@ function screen(title, items, onBack) {
       <h1>${title}</h1>
       <p class="helper">Tap a big card to start reading.</p>
       <div class="list"></div>
+      <div class="menu-actions"></div>
     </section>
   `;
 
@@ -66,6 +67,22 @@ async function showCollections() {
     cover: collection.firstBook ? coverUrl(collection.name, collection.firstBook, collection.version) : null,
     action: () => setState({ view: "books", collection: collection.name }),
   })));
+
+  const actions = app.querySelector(".menu-actions");
+  const button = document.createElement("button");
+  button.className = "sync";
+  button.textContent = "Sync library";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = "Syncing...";
+    try {
+      await api("/api/sync", { method: "POST" });
+      await showCollections();
+    } catch (error) {
+      showError(error);
+    }
+  });
+  actions.append(button);
 }
 
 async function showBooks() {

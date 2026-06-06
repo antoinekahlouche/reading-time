@@ -59,7 +59,8 @@ button {
 
 .item,
 .back,
-.return {
+.return,
+.sync {
   border: 0;
   border-radius: 24px;
   background: #fff;
@@ -112,13 +113,15 @@ button {
 
 .item:hover,
 .back:hover,
-.return:hover {
+.return:hover,
+.sync:hover {
   transform: translateY(-2px);
 }
 
 .item:active,
 .back:active,
 .return:active,
+.sync:active,
 .counter:active,
 .jump-actions button:active {
   transform: translateY(4px);
@@ -130,6 +133,25 @@ button {
   color: #24304f;
   font-size: 22px;
   font-weight: 800;
+}
+
+.menu-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 34px;
+}
+
+.sync {
+  background: #7c5cff;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 850;
+  box-shadow: 0 10px 0 #5740c9, 0 18px 34px rgba(58, 45, 25, 0.14);
+}
+
+.sync:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .loading {
