@@ -1,0 +1,16 @@
+name: reading-time
+
+services:
+  reading-time:
+    image: ghcr.io/antoinekahlouche/reading-time:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data:ro
+      - reading-time:/tmp/reading-time
+    environment:
+      PORT: 3000
+      DATA_DIR: /app/data
+
+volumes:
+  reading-time:
