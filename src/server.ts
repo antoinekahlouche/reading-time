@@ -301,6 +301,26 @@ function cleanupPdfCacheWindow(pdfPath: string, currentPage: number, totalPages:
   }
 }
 
+function cleanupPdfCacheExceptCover(pdfPath: string, totalPages: number) {
+  for (let index = renderQueue.length - 1; index >= 0; index -= 1) {
+    const item = renderQueue[index];
+    if (item.pdfPath !== pdfPath || item.page === 1) continue;
+
+    renderQueue.splice(index, 1);
+    queuedKeys.delete(queueKey(item.pdfPath, item.page));
+  }
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    if (activeRenders.has(queueKey(pdfPath, page))) continue;
+
+    const cachePath = cachePathFor(pdfPath, page);
+    if (existsSync(cachePath)) {
+      unlinkSync(cachePath);
+      logAction("image-cache-removed", { pdfPath, page, cachePath });
+    }
+  }
+}
+
 async function processRenderQueue() {
   if (queueRunning) return;
   queueRunning = true;
@@ -328,10 +348,8 @@ function preRenderStartupPages() {
   for (const collection of libraryCache.collections) {
     for (const book of collection.books) {
       const pdfPath = safeResolve(collection.name, book.name);
-      const pages = book.pages;
-      const currentPage = cachedPage(pdfPath, pages);
-      cleanupPdfCacheWindow(pdfPath, currentPage, pages);
-      enqueuePageWindow(pdfPath, currentPage, pages);
+      cleanupPdfCacheExceptCover(pdfPath, book.pages);
+      enqueuePage(pdfPath, 1);
     }
   }
 }
