@@ -26,14 +26,22 @@ button {
 }
 
 .menu {
-  width: min(1180px, calc(100vw - 40px));
-  margin: 0 auto;
+  width: auto;
+  max-width: 1180px;
+  margin: 0 20px;
   padding: 34px 0 64px;
   padding-top: max(34px, env(safe-area-inset-top));
 }
 
+@supports (width: min(1180px, calc(100vw - 40px))) {
+  .menu {
+    width: min(1180px, calc(100vw - 40px));
+    margin: 0 auto;
+  }
+}
+
 .eyebrow {
-  width: fit-content;
+  display: inline-block;
   margin: 0 0 12px;
   padding: 8px 14px;
   border-radius: 999px;
@@ -46,6 +54,7 @@ button {
 
 .menu h1 {
   margin: 0;
+  font-size: 58px;
   font-size: clamp(44px, 8vw, 82px);
   line-height: 1;
   letter-spacing: -0.05em;
@@ -54,6 +63,7 @@ button {
 .helper {
   margin: 16px 0 28px;
   color: #59627e;
+  font-size: 24px;
   font-size: clamp(20px, 3vw, 28px);
   font-weight: 650;
 }
@@ -87,11 +97,13 @@ button {
 .item {
   display: inline-block;
   vertical-align: top;
-  width: calc(100% - 22px);
+  width: 45%;
+  width: calc(50% - 22px);
   margin: 11px;
   text-align: left;
   min-height: 96px;
   color: #24304f;
+  font-size: 28px;
   font-size: clamp(24px, 3vw, 34px);
   font-weight: 850;
 }
@@ -139,7 +151,6 @@ button {
 
 .cover {
   position: absolute;
-  inset: 0;
   top: 0;
   right: 0;
   bottom: 0;
@@ -154,6 +165,7 @@ button {
 .item-label {
   display: block;
   margin-top: 14px;
+  font-size: 20px;
   font-size: clamp(18px, 2vw, 24px);
   line-height: 1.08;
 }
@@ -479,12 +491,11 @@ button {
 
 @media (max-width: 700px) {
   .list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
     margin: -7px;
   }
 
   .item {
+    width: 100%;
     width: calc(100% - 14px);
     margin: 7px;
   }
@@ -507,6 +518,13 @@ button {
     .item {
       width: 100%;
       margin: 0;
+    }
+  }
+
+  @supports (display: grid) {
+    .list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
     }
   }
 }

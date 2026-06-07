@@ -34,10 +34,6 @@ function statePath(next = state) {
   return `/${next.collection.split("/").map(enc).join("/")}/${enc(next.book)}/${next.page}`;
 }
 
-function escapeHtml(value) {
-  return value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
-}
-
 async function api(path, options) {
   const response = await fetch(path, options);
   if (!response.ok) throw new Error((await response.json()).error || "Request failed");
@@ -74,7 +70,22 @@ function screen(title, items, onBack) {
     const button = document.createElement("button");
     button.className = item.cover ? "item cover-card" : "item";
     if (item.cover) {
-      button.innerHTML = `<span class="cover-wrap"><img class="cover" src="${item.cover}" alt="${escapeHtml(item.label)} cover" loading="lazy" /></span><span class="item-label">${escapeHtml(item.label)}</span>`;
+      const coverWrap = document.createElement("span");
+      coverWrap.className = "cover-wrap";
+
+      const cover = document.createElement("img");
+      cover.className = "cover";
+      cover.src = item.cover;
+      cover.alt = `${item.label} cover`;
+      cover.setAttribute("loading", "lazy");
+      coverWrap.appendChild(cover);
+
+      const label = document.createElement("span");
+      label.className = "item-label";
+      label.textContent = item.label;
+
+      button.appendChild(coverWrap);
+      button.appendChild(label);
     } else {
       button.textContent = item.label;
     }

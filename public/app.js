@@ -60,16 +60,6 @@ function statePath() {
   if (next.view === "books") return "/".concat(next.collection.split("/").map(enc).join("/"));
   return "/".concat(next.collection.split("/").map(enc).join("/"), "/").concat(enc(next.book), "/").concat(next.page);
 }
-function escapeHtml(value) {
-  return value.replace(/[&<>"]/g, function (char) {
-    return {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;"
-    }[char];
-  });
-}
 function api(_x, _x2) {
   return _api.apply(this, arguments);
 }
@@ -128,7 +118,19 @@ function screen(title, items, onBack) {
       var button = document.createElement("button");
       button.className = item.cover ? "item cover-card" : "item";
       if (item.cover) {
-        button.innerHTML = "<span class=\"cover-wrap\"><img class=\"cover\" src=\"".concat(item.cover, "\" alt=\"").concat(escapeHtml(item.label), " cover\" loading=\"lazy\" /></span><span class=\"item-label\">").concat(escapeHtml(item.label), "</span>");
+        var coverWrap = document.createElement("span");
+        coverWrap.className = "cover-wrap";
+        var cover = document.createElement("img");
+        cover.className = "cover";
+        cover.src = item.cover;
+        cover.alt = "".concat(item.label, " cover");
+        cover.setAttribute("loading", "lazy");
+        coverWrap.appendChild(cover);
+        var label = document.createElement("span");
+        label.className = "item-label";
+        label.textContent = item.label;
+        button.appendChild(coverWrap);
+        button.appendChild(label);
       } else {
         button.textContent = item.label;
       }
