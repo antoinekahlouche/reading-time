@@ -135,7 +135,11 @@ function screen(title, items, onBack) {
       if (item.cover) {
         var coverWrap = document.createElement("span");
         coverWrap.className = "cover-wrap";
-        coverWrap.style.backgroundImage = "url(\"".concat(item.cover, "\")");
+        var cover = document.createElement("img");
+        cover.className = "cover";
+        cover.src = item.cover;
+        cover.alt = "".concat(item.label, " cover");
+        coverWrap.appendChild(cover);
         var label = document.createElement("span");
         label.className = "item-label";
         label.textContent = item.label;

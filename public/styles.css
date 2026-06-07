@@ -148,8 +148,13 @@ button {
 
 .cover-wrap::before {
   content: "";
+  display: none;
+}
+
+.cover {
   display: block;
-  padding-top: 133.333%;
+  width: 100%;
+  height: auto;
 }
 
 .item-label {
