@@ -245,6 +245,15 @@ function showJumpDialog() {
   });
 }
 
+function icon(name) {
+  const paths = {
+    back: '<path d="M17 6 7 16l10 10" /><path d="M8 16h18" />',
+    refresh: '<path d="M24 11a9 9 0 1 0 1 9" /><path d="M24 5v6h-6" />',
+    next: '<path d="M15 6l10 10-10 10" /><path d="M7 16h17" />',
+  };
+  return `<svg class="icon" viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</g></svg>`;
+}
+
 async function showReader() {
   if (!state.version) {
     app.innerHTML = '<p class="loading">Opening the book...</p>';
@@ -255,13 +264,13 @@ async function showReader() {
 
   app.innerHTML = `
     <section class="reader">
-      <button class="return" aria-label="Back to books">←</button>
-      <button class="refresh" type="button" aria-label="Refresh page">↻</button>
+      <button class="return" aria-label="Back to books">${icon("back")}</button>
+      <button class="refresh" type="button" aria-label="Refresh page">${icon("refresh")}</button>
       <button class="counter" type="button">${state.page} / ${state.pages}</button>
       <div class="loader"><span>Turning the page...</span></div>
       <img class="page loading-page" src="${pageUrl(state.page, true)}" alt="Page ${state.page}" />
-      <button class="tap left" aria-label="Previous page"><span>←</span></button>
-      <button class="tap right" aria-label="Next page"><span>→</span></button>
+      <button class="tap left" aria-label="Previous page"><span>${icon("back")}</span></button>
+      <button class="tap right" aria-label="Next page"><span>${icon("next")}</span></button>
     </section>
   `;
 

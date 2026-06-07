@@ -392,6 +392,14 @@ function showJumpDialog() {
     goPage(page);
   });
 }
+function icon(name) {
+  var paths = {
+    back: '<path d="M17 6 7 16l10 10" /><path d="M8 16h18" />',
+    refresh: '<path d="M24 11a9 9 0 1 0 1 9" /><path d="M24 5v6h-6" />',
+    next: '<path d="M15 6l10 10-10 10" /><path d="M7 16h17" />'
+  };
+  return "<svg class=\"icon\" viewBox=\"0 0 32 32\" aria-hidden=\"true\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\">".concat(paths[name], "</g></svg>");
+}
 function showReader() {
   return _showReader.apply(this, arguments);
 }
@@ -419,7 +427,7 @@ function _showReader() {
           });
           history.replaceState(null, "", statePath());
         case 2:
-          app.innerHTML = "\n    <section class=\"reader\">\n      <button class=\"return\" aria-label=\"Back to books\">\u2190</button>\n      <button class=\"refresh\" type=\"button\" aria-label=\"Refresh page\">\u21BB</button>\n      <button class=\"counter\" type=\"button\">".concat(state.page, " / ").concat(state.pages, "</button>\n      <div class=\"loader\"><span>Turning the page...</span></div>\n      <img class=\"page loading-page\" src=\"").concat(pageUrl(state.page, true), "\" alt=\"Page ").concat(state.page, "\" />\n      <button class=\"tap left\" aria-label=\"Previous page\"><span>\u2190</span></button>\n      <button class=\"tap right\" aria-label=\"Next page\"><span>\u2192</span></button>\n    </section>\n  ");
+          app.innerHTML = "\n    <section class=\"reader\">\n      <button class=\"return\" aria-label=\"Back to books\">".concat(icon("back"), "</button>\n      <button class=\"refresh\" type=\"button\" aria-label=\"Refresh page\">").concat(icon("refresh"), "</button>\n      <button class=\"counter\" type=\"button\">").concat(state.page, " / ").concat(state.pages, "</button>\n      <div class=\"loader\"><span>Turning the page...</span></div>\n      <img class=\"page loading-page\" src=\"").concat(pageUrl(state.page, true), "\" alt=\"Page ").concat(state.page, "\" />\n      <button class=\"tap left\" aria-label=\"Previous page\"><span>").concat(icon("back"), "</span></button>\n      <button class=\"tap right\" aria-label=\"Next page\"><span>").concat(icon("next"), "</span></button>\n    </section>\n  ");
           onPress(app.querySelector(".return"), function () {
             return navigate({
               view: "books",
