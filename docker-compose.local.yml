@@ -1,17 +1,16 @@
-name: reading-time
+name: reading-time-local
 
 services:
     reading-time:
-        container_name: reading-time
-        image: ghcr.io/antoinekahlouche/reading-time:latest
-        pull_policy: always
+        container_name: reading-time-local
         build:
             context: .
+            dockerfile: Dockerfile
         ports:
             - "3000:3000"
         volumes:
             - ./data:/app/data:ro
-            - reading-time:/tmp/reading-time
+            - reading-time-local:/tmp/reading-time
         environment:
             PORT: 3000
             DATA_DIR: /app/data
@@ -19,4 +18,4 @@ services:
             JPEG_QUALITY: 85
 
 volumes:
-    reading-time:
+    reading-time-local:
