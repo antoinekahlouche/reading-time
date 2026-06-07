@@ -85,6 +85,8 @@ button {
 .item,
 .back,
 .return,
+.refresh,
+.counter,
 .sync {
   border: 0;
   border-radius: 24px;
@@ -176,6 +178,8 @@ button {
 .item:hover,
 .back:hover,
 .return:hover,
+.refresh:hover,
+.counter:hover,
 .sync:hover {
   transform: translateY(-2px);
 }
@@ -183,6 +187,7 @@ button {
 .item:active,
 .back:active,
 .return:active,
+.refresh:active,
 .sync:active,
 .counter:active,
 .jump-actions button:active {
@@ -329,12 +334,13 @@ button {
 }
 
 .return,
+.refresh,
 .counter {
   position: fixed;
   z-index: 20;
   top: 12px;
   max-width: 44%;
-  background: rgba(255, 255, 255, 0.9);
+  background: #fff;
   backdrop-filter: blur(8px);
   white-space: nowrap;
 }
@@ -343,23 +349,39 @@ button {
   left: 12px;
   left: max(12px, env(safe-area-inset-left));
   color: #24304f;
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 850;
+  line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.refresh {
+  left: 108px;
+  min-width: 64px;
+  color: #24304f;
+  font-size: 30px;
+  font-weight: 850;
+  line-height: 1;
 }
 
 .counter {
   right: 12px;
   right: max(12px, env(safe-area-inset-right));
-  padding: 18px 20px;
-  border-radius: 18px;
-  border: 0;
   color: #24304f;
   font-size: 20px;
   font-weight: 850;
-  box-shadow: 0 8px 24px rgba(36, 48, 79, 0.14);
   cursor: pointer;
+}
+
+.refresh:hover {
+  -webkit-transform: translateY(-2px);
+  transform: translateY(-2px);
+}
+
+.refresh:active {
+  -webkit-transform: translateY(4px);
+  transform: translateY(4px);
 }
 
 .jump-modal {
@@ -439,6 +461,12 @@ button {
   filter: brightness(1.05);
 }
 
+.jump-actions .secondary {
+  background: #fff;
+  color: #24304f;
+  box-shadow: 0 7px 0 #d7c8ab;
+}
+
 .tap {
   position: fixed;
   z-index: 2;
@@ -456,12 +484,24 @@ button {
   bottom: 18px;
   bottom: max(18px, env(safe-area-inset-bottom));
   min-width: 96px;
-  padding: 16px 18px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 8px 24px rgba(36, 48, 79, 0.14);
-  font-size: 20px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 10px 0 #d7c8ab, 0 18px 34px rgba(58, 45, 25, 0.14);
+  font-size: 38px;
   font-weight: 900;
+  line-height: 1;
+}
+
+.tap:hover span {
+  -webkit-transform: translateY(-2px);
+  transform: translateY(-2px);
+}
+
+.tap:active span {
+  -webkit-transform: translateY(4px);
+  transform: translateY(4px);
+  box-shadow: 0 5px 0 #d7c8ab, 0 10px 22px rgba(58, 45, 25, 0.12);
 }
 
 .tap.left {
@@ -480,7 +520,6 @@ button {
 .tap.right span {
   right: 16px;
   right: max(16px, env(safe-area-inset-right));
-  background: #ffd666;
 }
 
 @supports (gap: 1px) {
@@ -556,11 +595,16 @@ button {
 
 @media (max-width: 760px) {
   .return,
+  .refresh,
   .counter {
     top: 10px;
     max-width: 44%;
     padding: 14px 16px;
     border-radius: 18px;
+    font-size: 28px;
+  }
+
+  .counter {
     font-size: 18px;
   }
 }
