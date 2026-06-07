@@ -403,8 +403,10 @@ button {
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 72px 18px 18px;
+  padding: 56px 18px 18px;
   background: rgba(36, 48, 79, 0.42);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @supports (display: grid) {
@@ -415,23 +417,44 @@ button {
 }
 
 .jump-box {
-  width: auto;
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  width: 404px;
+  width: calc(100% - 36px);
   max-width: 440px;
-  margin: 0 auto;
-  display: grid;
-  gap: 14px;
-  padding: 18px;
+  height: auto;
+  max-height: 320px;
+  margin: 0;
+  overflow: auto;
+  padding: 14px;
   border: 0;
   border-radius: 24px;
   background: #fff7e8;
   box-shadow: 0 24px 80px rgba(36, 48, 79, 0.28);
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+}
+
+@supports (display: grid) {
+  .jump-box {
+    display: grid;
+    grid-gap: 12px;
+    gap: 12px;
+  }
 }
 
 .jump-box label {
   display: block;
-  margin-bottom: 12px;
-  font-size: 24px;
+  margin-bottom: 8px;
+  font-size: 22px;
   font-weight: 850;
+}
+
+@supports (display: grid) {
+  .jump-box label {
+    margin-bottom: 0;
+  }
 }
 
 .jump-box input {
@@ -440,16 +463,16 @@ button {
   border-radius: 18px;
   background: #fff;
   color: #24304f;
-  padding: 18px 20px;
+  padding: 12px 16px;
   font: inherit;
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 800;
 }
 
 .jump-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 14px;
+  margin-top: 10px;
   gap: 10px;
 }
 
@@ -458,7 +481,7 @@ button {
   border-radius: 18px;
   background: #7c5cff;
   color: #fff;
-  padding: 16px 20px;
+  padding: 12px 18px;
   font-size: 20px;
   font-weight: 850;
   box-shadow: 0 7px 0 #5740c9;
