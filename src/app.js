@@ -196,6 +196,7 @@ function scrollReaderToTop() {
 function goPage(nextPage) {
   if (nextPage < 1 || nextPage > state.pages) return;
   navigate({ page: nextPage, jumpOpen: false });
+  savePosition(nextPage);
   scrollReaderToTop();
 }
 

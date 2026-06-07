@@ -356,6 +356,7 @@ function goPage(nextPage) {
     page: nextPage,
     jumpOpen: false
   });
+  savePosition(nextPage);
   scrollReaderToTop();
 }
 function preloadPage(page) {
