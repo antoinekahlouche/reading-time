@@ -329,12 +329,18 @@ function savePosition(page) {
     return console.error("Failed to save position:", error);
   });
 }
+function scrollReaderToTop() {
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
 function goPage(nextPage) {
   if (nextPage < 1 || nextPage > state.pages) return;
   navigate({
     page: nextPage,
     jumpOpen: false
   });
+  scrollReaderToTop();
   savePosition(nextPage);
 }
 function preloadPage(page) {
@@ -423,6 +429,7 @@ function _showReader() {
           page.addEventListener("load", function () {
             page.classList.remove("loading-page");
             loader.classList.add("hidden");
+            scrollReaderToTop();
             preloadPage(state.page - 1);
             preloadPage(state.page - 2);
             preloadPageWindow(state.page + 1);
@@ -476,5 +483,6 @@ window.addEventListener("keydown", function (event) {
   });
 });
 state = pathState();
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 history.replaceState(null, "", statePath());
 render();
