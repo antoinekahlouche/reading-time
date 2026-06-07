@@ -379,6 +379,7 @@ function showJumpDialog() {
   input.focus();
   input.select();
   input.addEventListener("input", function () {
+    if (input.value === "") return;
     if (Number(input.value) > state.pages) input.value = String(state.pages);
     if (Number(input.value) < 1) input.value = "1";
   });
