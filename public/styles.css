@@ -337,7 +337,7 @@ button {
 .return,
 .counter {
   position: fixed;
-  z-index: 3;
+  z-index: 20;
   top: 12px;
   max-width: 44%;
   background: rgba(255, 255, 255, 0.9);
@@ -439,7 +439,7 @@ button {
 .tap {
   position: fixed;
   z-index: 2;
-  top: 0;
+  top: 76px;
   bottom: 0;
   width: 50%;
   border: 0;

@@ -106,6 +106,21 @@ function navigate(next) {
   history.pushState(null, "", statePath());
   render();
 }
+function onPress(element, action) {
+  var touched = false;
+  element.addEventListener("touchend", function (event) {
+    touched = true;
+    event.preventDefault();
+    action();
+  });
+  element.addEventListener("click", function () {
+    if (touched) {
+      touched = false;
+      return;
+    }
+    action();
+  });
+}
 function screen(title, items, onBack) {
   app.innerHTML = "\n    <section class=\"menu\">\n      ".concat(onBack ? '<button class="back">Back to shelves</button>' : "", "\n      <p class=\"eyebrow\">Reading Time</p>\n      <h1>").concat(title, "</h1>\n      <p class=\"helper\">Tap a big card to start reading.</p>\n      <div class=\"list\"></div>\n      <div class=\"menu-actions\"></div>\n    </section>\n  ");
   if (onBack) app.querySelector(".back").addEventListener("click", onBack);
@@ -410,7 +425,7 @@ function _showReader() {
           savePosition(state.page);
         case 2:
           app.innerHTML = "\n    <section class=\"reader\">\n      <button class=\"return\">Books</button>\n      <button class=\"counter\" type=\"button\">".concat(state.page, " / ").concat(state.pages, "</button>\n      <div class=\"loader\"><span>Turning the page...</span></div>\n      <img class=\"page loading-page\" src=\"").concat(pageUrl(state.page, true), "\" alt=\"Page ").concat(state.page, "\" />\n      <button class=\"tap left\" aria-label=\"Previous page\"><span>Prev</span></button>\n      <button class=\"tap right\" aria-label=\"Next page\"><span>Next</span></button>\n    </section>\n  ");
-          app.querySelector(".return").addEventListener("click", function () {
+          onPress(app.querySelector(".return"), function () {
             return navigate({
               view: "books",
               book: null,

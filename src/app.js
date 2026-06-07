@@ -51,6 +51,22 @@ function navigate(next) {
   render();
 }
 
+function onPress(element, action) {
+  let touched = false;
+  element.addEventListener("touchend", (event) => {
+    touched = true;
+    event.preventDefault();
+    action();
+  });
+  element.addEventListener("click", () => {
+    if (touched) {
+      touched = false;
+      return;
+    }
+    action();
+  });
+}
+
 function screen(title, items, onBack) {
   app.innerHTML = `
     <section class="menu">
@@ -254,7 +270,7 @@ async function showReader() {
     </section>
   `;
 
-  app.querySelector(".return").addEventListener("click", () => navigate({ view: "books", book: null, page: 1, pages: 0, version: null, jumpOpen: false }));
+  onPress(app.querySelector(".return"), () => navigate({ view: "books", book: null, page: 1, pages: 0, version: null, jumpOpen: false }));
   app.querySelector(".counter").addEventListener("click", showJumpDialog);
   app.querySelector(".left").addEventListener("click", () => goPage(state.page - 1));
   app.querySelector(".right").addEventListener("click", () => goPage(state.page + 1));
