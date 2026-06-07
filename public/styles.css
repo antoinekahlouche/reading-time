@@ -148,13 +148,28 @@ button {
 
 .cover-wrap::before {
   content: "";
-  display: none;
+  display: block;
+  padding-top: 133.333%;
 }
 
 .cover {
   display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: auto;
+}
+
+@supports (aspect-ratio: 3 / 4) {
+  .cover-wrap::before {
+    display: none;
+    padding-top: 0;
+  }
+
+  .cover {
+    position: static;
+  }
 }
 
 .item-label {
