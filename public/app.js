@@ -353,15 +353,11 @@ function goPage(nextPage) {
     jumpOpen: false
   });
   scrollReaderToTop();
-  savePosition(nextPage);
 }
 function preloadPage(page) {
   if (page < 1 || page > state.pages) return;
   var image = new Image();
   image.src = pageUrl(page);
-}
-function preloadPageWindow(startPage) {
-  for (var offset = 0; offset < 6; offset += 1) preloadPage(startPage + offset);
 }
 function showJumpDialog() {
   state.jumpOpen = true;
@@ -417,7 +413,6 @@ function _showReader() {
             page: Math.min(state.page, pages)
           });
           history.replaceState(null, "", statePath());
-          savePosition(state.page);
         case 2:
           app.innerHTML = "\n    <section class=\"reader\">\n      <button class=\"return\">Books</button>\n      <button class=\"counter\" type=\"button\">".concat(state.page, " / ").concat(state.pages, "</button>\n      <div class=\"loader\"><span>Turning the page...</span></div>\n      <img class=\"page loading-page\" src=\"").concat(pageUrl(state.page, true), "\" alt=\"Page ").concat(state.page, "\" />\n      <button class=\"tap left\" aria-label=\"Previous page\"><span>Prev</span></button>\n      <button class=\"tap right\" aria-label=\"Next page\"><span>Next</span></button>\n    </section>\n  ");
           onPress(app.querySelector(".return"), function () {
@@ -443,9 +438,7 @@ function _showReader() {
             page.classList.remove("loading-page");
             loader.classList.add("hidden");
             scrollReaderToTop();
-            preloadPage(state.page - 1);
-            preloadPage(state.page - 2);
-            preloadPageWindow(state.page + 1);
+            preloadPage(state.page + 1);
           });
           page.addEventListener("error", function () {
             loader.querySelector("span").textContent = "Could not load page";

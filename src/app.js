@@ -192,17 +192,12 @@ function goPage(nextPage) {
   if (nextPage < 1 || nextPage > state.pages) return;
   navigate({ page: nextPage, jumpOpen: false });
   scrollReaderToTop();
-  savePosition(nextPage);
 }
 
 function preloadPage(page) {
   if (page < 1 || page > state.pages) return;
   const image = new Image();
   image.src = pageUrl(page);
-}
-
-function preloadPageWindow(startPage) {
-  for (let offset = 0; offset < 6; offset += 1) preloadPage(startPage + offset);
 }
 
 function showJumpDialog() {
@@ -250,7 +245,6 @@ async function showReader() {
     const { pages, version } = await api(`/api/book/${enc(state.collection)}/${enc(state.book)}/meta`);
     state = Object.assign({}, state, { pages, version, page: Math.min(state.page, pages) });
     history.replaceState(null, "", statePath());
-    savePosition(state.page);
   }
 
   app.innerHTML = `
@@ -276,9 +270,7 @@ async function showReader() {
     page.classList.remove("loading-page");
     loader.classList.add("hidden");
     scrollReaderToTop();
-    preloadPage(state.page - 1);
-    preloadPage(state.page - 2);
-    preloadPageWindow(state.page + 1);
+    preloadPage(state.page + 1);
   });
 
   page.addEventListener("error", () => {

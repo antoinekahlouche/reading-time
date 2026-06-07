@@ -9,8 +9,8 @@ const cacheDir = join(tmpDir, "cache");
 const cacheStatePath = join(tmpDir, "cache-state.json");
 const libraryCachePath = join(tmpDir, "library-cache.json");
 const publicDir = resolve("public");
-const cacheBeforePages = 2;
-const cacheAfterPages = 5;
+const cacheBeforePages = 1;
+const cacheAfterPages = 1;
 const renderDpi = String(Number(process.env.RENDER_DPI) || 90);
 const jpegQuality = String(Number(process.env.JPEG_QUALITY) || 85);
 const coverRenderDpi = String(Math.round(Number(renderDpi) / 2));
@@ -370,23 +370,25 @@ async function processRenderQueue() {
   if (queueRunning) return;
   queueRunning = true;
 
-  while (renderQueue.length > 0) {
-    const item = renderQueue.shift();
-    if (!item) continue;
+  try {
+    while (renderQueue.length > 0) {
+      const item = renderQueue.shift();
+      if (!item) continue;
 
-    const key = queueKey(item.pdfPath, item.page, item.dpi, item.quality);
-    try {
-      await renderPage(item.pdfPath, item.page, item.dpi, item.quality);
-    } catch (error) {
-      console.error(`Failed to prerender ${item.pdfPath} page ${item.page}:`, error);
-    } finally {
-      queuedKeys.delete(key);
+      const key = queueKey(item.pdfPath, item.page, item.dpi, item.quality);
+      try {
+        await renderPage(item.pdfPath, item.page, item.dpi, item.quality);
+      } catch (error) {
+        console.error(`Failed to prerender ${item.pdfPath} page ${item.page}:`, error);
+      } finally {
+        queuedKeys.delete(key);
+      }
+
+      await Bun.sleep(10);
     }
-
-    await Bun.sleep(10);
+  } finally {
+    queueRunning = false;
   }
-
-  queueRunning = false;
 }
 
 function preRenderStartupPages() {
