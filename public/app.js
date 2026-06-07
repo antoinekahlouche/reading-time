@@ -368,7 +368,7 @@ function showJumpDialog() {
   state.jumpOpen = true;
   var dialog = document.createElement("div");
   dialog.className = "jump-modal";
-  dialog.innerHTML = "\n    <form class=\"jump-box\">\n      <label for=\"jump-page\">Go to page</label>\n      <input id=\"jump-page\" name=\"page\" type=\"number\" min=\"1\" max=\"".concat(state.pages, "\" value=\"1\" inputmode=\"numeric\" />\n      <div class=\"jump-actions\">\n        <button type=\"button\" class=\"cancel\">Cancel</button>\n        <button type=\"submit\">Goto</button>\n      </div>\n    </form>\n  ");
+  dialog.innerHTML = "\n    <form class=\"jump-box\">\n      <label for=\"jump-page\">Go to page</label>\n      <input id=\"jump-page\" name=\"page\" type=\"number\" min=\"1\" max=\"".concat(state.pages, "\" value=\"1\" inputmode=\"numeric\" />\n      <div class=\"jump-actions\">\n        <button type=\"button\" class=\"cancel secondary\">Cancel</button>\n        <button type=\"submit\">Go</button>\n      </div>\n    </form>\n  ");
   app.appendChild(dialog);
   var input = dialog.querySelector("input");
   input.focus();
@@ -419,7 +419,7 @@ function _showReader() {
           });
           history.replaceState(null, "", statePath());
         case 2:
-          app.innerHTML = "\n    <section class=\"reader\">\n      <button class=\"return\">Books</button>\n      <button class=\"counter\" type=\"button\">".concat(state.page, " / ").concat(state.pages, "</button>\n      <div class=\"loader\"><span>Turning the page...</span></div>\n      <img class=\"page loading-page\" src=\"").concat(pageUrl(state.page, true), "\" alt=\"Page ").concat(state.page, "\" />\n      <button class=\"tap left\" aria-label=\"Previous page\"><span>Prev</span></button>\n      <button class=\"tap right\" aria-label=\"Next page\"><span>Next</span></button>\n    </section>\n  ");
+          app.innerHTML = "\n    <section class=\"reader\">\n      <button class=\"return\" aria-label=\"Back to books\">\u2190</button>\n      <button class=\"refresh\" type=\"button\" aria-label=\"Refresh page\">\u21BB</button>\n      <button class=\"counter\" type=\"button\">".concat(state.page, " / ").concat(state.pages, "</button>\n      <div class=\"loader\"><span>Turning the page...</span></div>\n      <img class=\"page loading-page\" src=\"").concat(pageUrl(state.page, true), "\" alt=\"Page ").concat(state.page, "\" />\n      <button class=\"tap left\" aria-label=\"Previous page\"><span>\u2190</span></button>\n      <button class=\"tap right\" aria-label=\"Next page\"><span>\u2192</span></button>\n    </section>\n  ");
           onPress(app.querySelector(".return"), function () {
             return navigate({
               view: "books",
@@ -429,6 +429,9 @@ function _showReader() {
               version: null,
               jumpOpen: false
             });
+          });
+          onPress(app.querySelector(".refresh"), function () {
+            return window.location.reload();
           });
           app.querySelector(".counter").addEventListener("click", showJumpDialog);
           app.querySelector(".left").addEventListener("click", function () {

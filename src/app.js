@@ -215,8 +215,8 @@ function showJumpDialog() {
       <label for="jump-page">Go to page</label>
       <input id="jump-page" name="page" type="number" min="1" max="${state.pages}" value="1" inputmode="numeric" />
       <div class="jump-actions">
-        <button type="button" class="cancel">Cancel</button>
-        <button type="submit">Goto</button>
+        <button type="button" class="cancel secondary">Cancel</button>
+        <button type="submit">Go</button>
       </div>
     </form>
   `;
@@ -255,16 +255,18 @@ async function showReader() {
 
   app.innerHTML = `
     <section class="reader">
-      <button class="return">Books</button>
+      <button class="return" aria-label="Back to books">←</button>
+      <button class="refresh" type="button" aria-label="Refresh page">↻</button>
       <button class="counter" type="button">${state.page} / ${state.pages}</button>
       <div class="loader"><span>Turning the page...</span></div>
       <img class="page loading-page" src="${pageUrl(state.page, true)}" alt="Page ${state.page}" />
-      <button class="tap left" aria-label="Previous page"><span>Prev</span></button>
-      <button class="tap right" aria-label="Next page"><span>Next</span></button>
+      <button class="tap left" aria-label="Previous page"><span>←</span></button>
+      <button class="tap right" aria-label="Next page"><span>→</span></button>
     </section>
   `;
 
   onPress(app.querySelector(".return"), () => navigate({ view: "books", book: null, page: 1, pages: 0, version: null, jumpOpen: false }));
+  onPress(app.querySelector(".refresh"), () => window.location.reload());
   app.querySelector(".counter").addEventListener("click", showJumpDialog);
   app.querySelector(".left").addEventListener("click", () => goPage(state.page - 1));
   app.querySelector(".right").addEventListener("click", () => goPage(state.page + 1));
