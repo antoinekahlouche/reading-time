@@ -72,6 +72,7 @@ function screen(title, items, onBack) {
     if (item.cover) {
       const coverWrap = document.createElement("span");
       coverWrap.className = "cover-wrap";
+      coverWrap.style.backgroundImage = `url("${item.cover}")`;
 
       const cover = document.createElement("img");
       cover.className = "cover";
