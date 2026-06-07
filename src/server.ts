@@ -34,6 +34,13 @@ function json(data: unknown, status = 200) {
   });
 }
 
+function staticHeaders(filePath: string) {
+  if (filePath.endsWith(".html") || filePath.endsWith(".js") || filePath.endsWith(".css")) {
+    return { "Cache-Control": "no-cache, must-revalidate" };
+  }
+  return undefined;
+}
+
 function logAction(action: string, details: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ time: new Date().toISOString(), action, ...details }));
 }
@@ -477,7 +484,7 @@ Bun.serve({
       filePath = join(publicDir, "index.html");
       file = Bun.file(filePath);
     }
-    return new Response(file);
+    return new Response(file, { headers: staticHeaders(filePath) });
   },
 });
 
