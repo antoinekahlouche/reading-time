@@ -362,7 +362,7 @@ button {
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 24px;
+  padding: 72px 18px 18px;
   background: rgba(36, 48, 79, 0.42);
 }
 
@@ -374,17 +374,21 @@ button {
 }
 
 .jump-box {
-  width: min(440px, 100%);
+  width: auto;
+  max-width: 440px;
+  margin: 0 auto;
   display: grid;
   gap: 14px;
-  padding: 22px;
+  padding: 18px;
   border: 0;
-  border-radius: 30px;
+  border-radius: 24px;
   background: #fff7e8;
   box-shadow: 0 24px 80px rgba(36, 48, 79, 0.28);
 }
 
 .jump-box label {
+  display: block;
+  margin-bottom: 12px;
   font-size: 24px;
   font-weight: 850;
 }
@@ -404,6 +408,7 @@ button {
 .jump-actions {
   display: flex;
   justify-content: flex-end;
+  margin-top: 14px;
   gap: 10px;
 }
 
@@ -417,6 +422,10 @@ button {
   font-weight: 850;
   box-shadow: 0 7px 0 #5740c9;
   cursor: pointer;
+}
+
+.jump-actions button + button {
+  margin-left: 10px;
 }
 
 .jump-actions button:hover {
