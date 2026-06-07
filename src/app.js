@@ -90,13 +90,6 @@ function screen(title, items, onBack) {
       coverWrap.className = "cover-wrap";
       coverWrap.style.backgroundImage = `url("${item.cover}")`;
 
-      const cover = document.createElement("img");
-      cover.className = "cover";
-      cover.src = item.cover;
-      cover.alt = `${item.label} cover`;
-      cover.setAttribute("loading", "lazy");
-      coverWrap.appendChild(cover);
-
       const label = document.createElement("span");
       label.className = "item-label";
       label.textContent = item.label;
