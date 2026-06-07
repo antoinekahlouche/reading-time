@@ -13,6 +13,8 @@ const cacheBeforePages = 2;
 const cacheAfterPages = 5;
 const renderDpi = String(Number(process.env.RENDER_DPI) || 90);
 const jpegQuality = String(Number(process.env.JPEG_QUALITY) || 85);
+const coverRenderDpi = String(Math.round(Number(renderDpi) / 2));
+const coverJpegQuality = String(Math.round(Number(jpegQuality) / 2));
 
 mkdirSync(tmpDir, { recursive: true });
 mkdirSync(cacheDir, { recursive: true });
@@ -158,8 +160,8 @@ function pdfVersion(pdfPath: string) {
   return String(Math.trunc(statSync(pdfPath).mtimeMs));
 }
 
-function cachePathFor(pdfPath: string, page: number) {
-  return join(cacheDir, `${Bun.hash(`${pdfPath}:${pdfVersion(pdfPath)}:${page}:${renderDpi}:${jpegQuality}:jpeg`)}.jpg`);
+function cachePathFor(pdfPath: string, page: number, dpi = renderDpi, quality = jpegQuality) {
+  return join(cacheDir, `${Bun.hash(`${pdfPath}:${pdfVersion(pdfPath)}:${page}:${dpi}:${quality}:jpeg`)}.jpg`);
 }
 
 function loadCacheState() {
@@ -233,23 +235,23 @@ function cachedPage(pdfPath: string, totalPages: number) {
   return Math.min(Math.max(cacheState[pdfKey(pdfPath)] ?? 1, 1), totalPages);
 }
 
-async function renderPage(pdfPath: string, page: number) {
-  const cachePath = cachePathFor(pdfPath, page);
+async function renderPage(pdfPath: string, page: number, dpi = renderDpi, quality = jpegQuality) {
+  const cachePath = cachePathFor(pdfPath, page, dpi, quality);
   if (existsSync(cachePath)) return Bun.file(cachePath);
 
-  const key = queueKey(pdfPath, page);
+  const key = queueKey(pdfPath, page, dpi, quality);
   const activeRender = activeRenders.get(key);
   if (activeRender) return activeRender;
 
-  const render = renderPageToCache(pdfPath, page, cachePath).finally(() => activeRenders.delete(key));
+  const render = renderPageToCache(pdfPath, page, cachePath, dpi, quality).finally(() => activeRenders.delete(key));
   activeRenders.set(key, render);
   return render;
 }
 
-async function renderPageToCache(pdfPath: string, page: number, cachePath: string) {
+async function renderPageToCache(pdfPath: string, page: number, cachePath: string, dpi: string, quality: string) {
   const outputPrefix = join(tmpDir, `${Bun.hash(`${pdfPath}:${page}:${Date.now()}`)}`);
-  logAction("image-cache-render-started", { pdfPath, page, cachePath, dpi: renderDpi, format: "jpeg", quality: jpegQuality });
-  await runCommand("pdftoppm", ["-f", String(page), "-l", String(page), "-jpeg", "-jpegopt", `quality=${jpegQuality}`, "-singlefile", "-r", renderDpi, pdfPath, outputPrefix]);
+  logAction("image-cache-render-started", { pdfPath, page, cachePath, dpi, format: "jpeg", quality });
+  await runCommand("pdftoppm", ["-f", String(page), "-l", String(page), "-jpeg", "-jpegopt", `quality=${quality}`, "-singlefile", "-r", dpi, pdfPath, outputPrefix]);
 
   const imagePath = `${outputPrefix}.jpg`;
   renameSync(imagePath, cachePath);
@@ -274,25 +276,25 @@ function runCommand(command: string, args: string[]) {
   });
 }
 
-const renderQueue: Array<{ pdfPath: string; page: number }> = [];
+const renderQueue: Array<{ pdfPath: string; page: number; dpi: string; quality: string }> = [];
 const queuedKeys = new Set<string>();
 const activeRenders = new Map<string, Promise<Blob>>();
 let queueRunning = false;
 
-function queueKey(pdfPath: string, page: number) {
-  return `${pdfPath}:${page}`;
+function queueKey(pdfPath: string, page: number, dpi = renderDpi, quality = jpegQuality) {
+  return `${pdfPath}:${page}:${dpi}:${quality}`;
 }
 
-function enqueuePage(pdfPath: string, page: number, priority = false) {
-  if (existsSync(cachePathFor(pdfPath, page))) return;
+function enqueuePage(pdfPath: string, page: number, priority = false, dpi = renderDpi, quality = jpegQuality) {
+  if (existsSync(cachePathFor(pdfPath, page, dpi, quality))) return;
 
-  const key = queueKey(pdfPath, page);
+  const key = queueKey(pdfPath, page, dpi, quality);
   if (queuedKeys.has(key)) return;
 
   queuedKeys.add(key);
-  if (priority) renderQueue.unshift({ pdfPath, page });
-  else renderQueue.push({ pdfPath, page });
-  logAction("image-cache-render-queued", { pdfPath, page, priority });
+  if (priority) renderQueue.unshift({ pdfPath, page, dpi, quality });
+  else renderQueue.push({ pdfPath, page, dpi, quality });
+  logAction("image-cache-render-queued", { pdfPath, page, priority, dpi, quality });
   void processRenderQueue();
 }
 
@@ -329,7 +331,7 @@ function cleanupPdfCacheWindow(pdfPath: string, currentPage: number, totalPages:
     if (item.page >= start && item.page <= end) continue;
 
     renderQueue.splice(index, 1);
-    queuedKeys.delete(queueKey(item.pdfPath, item.page));
+    queuedKeys.delete(queueKey(item.pdfPath, item.page, item.dpi, item.quality));
   }
 
   for (let page = 1; page <= totalPages; page += 1) {
@@ -350,7 +352,7 @@ function cleanupPdfCacheExceptCover(pdfPath: string, totalPages: number) {
     if (item.pdfPath !== pdfPath || item.page === 1) continue;
 
     renderQueue.splice(index, 1);
-    queuedKeys.delete(queueKey(item.pdfPath, item.page));
+    queuedKeys.delete(queueKey(item.pdfPath, item.page, item.dpi, item.quality));
   }
 
   for (let page = 2; page <= totalPages; page += 1) {
@@ -372,9 +374,9 @@ async function processRenderQueue() {
     const item = renderQueue.shift();
     if (!item) continue;
 
-    const key = queueKey(item.pdfPath, item.page);
+    const key = queueKey(item.pdfPath, item.page, item.dpi, item.quality);
     try {
-      await renderPage(item.pdfPath, item.page);
+      await renderPage(item.pdfPath, item.page, item.dpi, item.quality);
     } catch (error) {
       console.error(`Failed to prerender ${item.pdfPath} page ${item.page}:`, error);
     } finally {
@@ -392,7 +394,7 @@ function preRenderStartupPages() {
     for (const book of collection.books) {
       const pdfPath = safeResolve(collection.name, book.name);
       cleanupPdfCacheExceptCover(pdfPath, book.pages);
-      enqueuePage(pdfPath, 1);
+      enqueuePage(pdfPath, 1, false, coverRenderDpi, coverJpegQuality);
     }
   }
 }
@@ -419,7 +421,7 @@ async function handleApi(request: Request, url: URL) {
 
     if (parts.length === 5 && parts[0] === "api" && parts[1] === "book" && parts[4] === "cover") {
       const pdfPath = getPdfPath(parts[2], parts[3]);
-      return new Response(await renderPage(pdfPath, 1), {
+      return new Response(await renderPage(pdfPath, 1, coverRenderDpi, coverJpegQuality), {
         headers: {
           "Content-Type": "image/jpeg",
           "Cache-Control": "public, max-age=31536000, immutable",
