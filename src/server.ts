@@ -13,6 +13,8 @@ const cacheBeforePages = 2;
 const cacheAfterPages = 5;
 const renderDpi = String(Number(process.env.RENDER_DPI) || 90);
 const jpegQuality = String(Number(process.env.JPEG_QUALITY) || 85);
+const coverDpi = String(Math.max(24, Math.round(Number(renderDpi) / 2)));
+const coverJpegQuality = String(Math.max(35, Math.round(Number(jpegQuality) / 2)));
 
 mkdirSync(tmpDir, { recursive: true });
 mkdirSync(cacheDir, { recursive: true });
@@ -155,6 +157,10 @@ function cachePathFor(pdfPath: string, page: number) {
   return join(cacheDir, `${Bun.hash(`${pdfPath}:${pdfVersion(pdfPath)}:${page}:${renderDpi}:${jpegQuality}:jpeg`)}.jpg`);
 }
 
+function coverCachePathFor(pdfPath: string) {
+  return join(cacheDir, `${Bun.hash(`${pdfPath}:${pdfVersion(pdfPath)}:${coverDpi}:${coverJpegQuality}:cover-jpeg`)}.jpg`);
+}
+
 function loadCacheState() {
   try {
     return JSON.parse(readFileSync(cacheStatePath, "utf8")) as CacheState;
@@ -239,6 +245,19 @@ async function renderPage(pdfPath: string, page: number) {
   return render;
 }
 
+async function renderCover(pdfPath: string) {
+  const cachePath = coverCachePathFor(pdfPath);
+  if (existsSync(cachePath)) return Bun.file(cachePath);
+
+  const key = `cover:${pdfPath}`;
+  const activeRender = activeRenders.get(key);
+  if (activeRender) return activeRender;
+
+  const render = renderCoverToCache(pdfPath, cachePath).finally(() => activeRenders.delete(key));
+  activeRenders.set(key, render);
+  return render;
+}
+
 async function renderPageToCache(pdfPath: string, page: number, cachePath: string) {
   const outputPrefix = join(tmpDir, `${Bun.hash(`${pdfPath}:${page}:${Date.now()}`)}`);
   logAction("image-cache-render-started", { pdfPath, page, cachePath, dpi: renderDpi, format: "jpeg", quality: jpegQuality });
@@ -247,6 +266,17 @@ async function renderPageToCache(pdfPath: string, page: number, cachePath: strin
   const imagePath = `${outputPrefix}.jpg`;
   renameSync(imagePath, cachePath);
   logAction("image-cache-added", { pdfPath, page, cachePath });
+  return Bun.file(cachePath);
+}
+
+async function renderCoverToCache(pdfPath: string, cachePath: string) {
+  const outputPrefix = join(tmpDir, `${Bun.hash(`${pdfPath}:cover:${Date.now()}`)}`);
+  logAction("cover-cache-render-started", { pdfPath, cachePath, dpi: coverDpi, format: "jpeg", quality: coverJpegQuality });
+  await runCommand("pdftoppm", ["-f", "1", "-l", "1", "-jpeg", "-jpegopt", `quality=${coverJpegQuality}`, "-singlefile", "-r", coverDpi, pdfPath, outputPrefix]);
+
+  const imagePath = `${outputPrefix}.jpg`;
+  renameSync(imagePath, cachePath);
+  logAction("cover-cache-added", { pdfPath, cachePath });
   return Bun.file(cachePath);
 }
 
@@ -385,7 +415,7 @@ function preRenderStartupPages() {
     for (const book of collection.books) {
       const pdfPath = safeResolve(collection.name, book.name);
       cleanupPdfCacheExceptCover(pdfPath, book.pages);
-      enqueuePage(pdfPath, 1);
+      void renderCover(pdfPath).catch((error) => console.error(`Failed to prerender cover ${pdfPath}:`, error));
     }
   }
 }
@@ -412,7 +442,7 @@ async function handleApi(request: Request, url: URL) {
 
     if (parts.length === 5 && parts[0] === "api" && parts[1] === "book" && parts[4] === "cover") {
       const pdfPath = getPdfPath(parts[2], parts[3]);
-      return new Response(await renderPage(pdfPath, 1), {
+      return new Response(await renderCover(pdfPath), {
         headers: {
           "Content-Type": "image/jpeg",
           "Cache-Control": "public, max-age=31536000, immutable",
