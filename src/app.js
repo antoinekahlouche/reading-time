@@ -96,7 +96,7 @@ function screen(title, items, onBack) {
 }
 
 function coverUrl(collection, book, version) {
-  return `/api/book/${enc(collection)}/${enc(book)}/cover?v=${enc(version)}`;
+  return `/api/book/${enc(collection)}/${enc(book)}/cover?v=${enc(`${version}:page-cover`)}`;
 }
 
 function parentCollection(collection) {

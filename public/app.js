@@ -145,7 +145,7 @@ function screen(title, items, onBack) {
   }
 }
 function coverUrl(collection, book, version) {
-  return "/api/book/".concat(enc(collection), "/").concat(enc(book), "/cover?v=").concat(enc(version));
+  return "/api/book/".concat(enc(collection), "/").concat(enc(book), "/cover?v=").concat(enc("".concat(version, ":page-cover")));
 }
 function parentCollection(collection) {
   var parts = collection.split("/");
