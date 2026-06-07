@@ -269,8 +269,8 @@ async function showReader() {
       <button class="counter" type="button">${state.page} / ${state.pages}</button>
       <div class="loader"><span>Turning the page...</span></div>
       <img class="page loading-page" src="${pageUrl(state.page, true)}" alt="Page ${state.page}" />
-      <button class="tap left" aria-label="Previous page"><span>${icon("back")}</span></button>
-      <button class="tap right" aria-label="Next page"><span>${icon("next")}</span></button>
+      <button class="tap left" aria-label="Previous page"></button>
+      <button class="tap right" aria-label="Next page"></button>
     </section>
   `;
 
